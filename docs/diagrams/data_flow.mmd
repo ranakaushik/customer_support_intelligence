@@ -1,0 +1,34 @@
+%% Data flow for one message. Dashed boxes = planned (not built yet).
+%% Blue boxes are the only places data leaves the machine (masked text -> Google Gemini).
+flowchart TD
+    IN["Customer message (raw text)"] --> P0["0 Preprocess (code)<br/>normalize, mask PII,<br/>regex order IDs, amounts, dates, flags"]
+    P0 -- "PreprocessResult: masked_text, identifiers, flags" --> GATE{"Empty or garbage?"}
+    P0 -. "pii_map (memory only)" .-> VAULT[("PII map<br/>never sent, never logged")]
+    GATE -- "yes" --> FB["Safe fallback<br/>needs human review"]
+    GATE -- "no: masked_text" --> C1["1 Classify (LLM)<br/>sent to Gemini: masked text"]
+    GATE -- "no: masked_text" --> C2["2 Extract (LLM)<br/>sent to Gemini: masked text"]
+
+    C1 -- "ClassificationResult<br/>intents, sentiment,<br/>frustration, language,<br/>confidence, quotes" --> V["3 Verify (code)<br/>schema valid, quotes found in text,<br/>merge regex identifiers"]
+    C2 -- "ExtractionResult<br/>product, issue, questions,<br/>outcome, risk signals,<br/>each with a quote" --> V
+
+    V -- "verified signals" --> R["4 Decide (rules.yaml)"]
+    R -- "Decision<br/>urgency, escalation,<br/>action, fired rules" --> D["5 Draft (LLM)<br/>sent to Gemini: facts + policies + masked text"]
+    V -- "facts block" --> D
+    POL[/"data/policies.md"/] --> D
+
+    D -- "DraftResult<br/>reply, addressed questions" --> CK["6 Check draft (code)<br/>no new IDs, amounts, dates;<br/>every question addressed"]
+    CK -- "fail" --> FB
+    CK -- "pass" --> UM["Un-mask email and phone<br/>(card numbers never restored)"]
+    VAULT -.-> UM
+    UM --> AS["7 Assemble (code)"]
+    FB --> AS
+    AS --> OUT["SupportResult<br/>Intent, Urgency, Key Information, Recommended Action,<br/>Escalation, Draft Response, Reasoning / Evidence"]
+
+    classDef planned stroke-dasharray: 6 4,fill:#f4f4f5,color:#52525b,stroke:#a1a1aa
+    classDef llm fill:#e0ecff,stroke:#3b6fd8,color:#0b2a66
+    classDef code fill:#e8f5e9,stroke:#2e7d32,color:#0d3b12
+    classDef data fill:#fff4e0,stroke:#c77700,color:#4a2c00
+    class C1,C2,D llm
+    class P0,GATE,UM code
+    class V,R,CK,AS,FB planned
+    class IN,OUT,POL,VAULT data

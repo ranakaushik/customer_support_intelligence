@@ -1,0 +1,70 @@
+%% Component architecture. Dashed boxes = planned (not built yet).
+%% Edges go between groups (not individual steps) so the diagram stays readable.
+flowchart TB
+    subgraph UI["Interfaces"]
+        direction LR
+        APP["Streamlit app<br/>app.py"]
+        CLI["CLI<br/>src/cli.py"]
+        EVAL["Evaluation runner<br/>eval/run_eval.py"]
+    end
+
+    subgraph CORE["Pipeline: src/pipeline.py"]
+        direction TB
+        PRE["0 Preprocess<br/>preprocess.py"]
+        CLS["1 Classify<br/>classify.py"]
+        EXT["2 Extract<br/>extract.py"]
+        VER["3 Verify<br/>validate.py"]
+        DEC["4 Decide<br/>rules.py"]
+        DRA["5 Draft<br/>draft.py"]
+        CHK["6 Check draft<br/>validate.py"]
+        ASM["7 Assemble<br/>assemble.py"]
+        PRE --> CLS
+        PRE --> EXT
+        CLS --> VER
+        EXT --> VER
+        VER --> DEC
+        DEC --> DRA
+        DRA --> CHK
+        CHK --> ASM
+    end
+
+    subgraph SHARED["Shared modules"]
+        direction TB
+        LLM["Gemini client: llm_client.py<br/>structured output, 1 retry,<br/>timeouts, token counting"]
+        PRM["Prompt loader: prompts.py"]
+        SCH["Schemas: schemas.py<br/>Pydantic contracts between steps"]
+    end
+
+    subgraph FILES["Config and data files"]
+        direction TB
+        ENV[".env + config.py<br/>key, model, prompt versions"]
+        PROMPTS["prompts/<br/>classify, extract, draft: v1, v2, final"]
+        RULES["src/rules.yaml"]
+        POL["data/policies.md"]
+        TESTSET["data/test_cases.json"]
+    end
+
+    GEM[("Google Gemini API<br/>gemini-3.5-flash")]
+
+    UI -- "message in, result out" --> CORE
+    CORE -- "steps 1, 2, 5" --> SHARED
+    CORE -- "step 4 reads rules, step 5 reads policies" --> FILES
+    SHARED -- "reads prompts and settings" --> FILES
+    LLM -- "masked text only, HTTPS" --> GEM
+
+    subgraph KEY["Legend"]
+        direction LR
+        K1["LLM"]
+        K2["Code / rules"]
+        K3["Planned"]
+        K4["External / file"]
+    end
+
+    classDef llm fill:#e0ecff,stroke:#3b6fd8,color:#0b2a66
+    classDef code fill:#e8f5e9,stroke:#2e7d32,color:#0d3b12
+    classDef planned stroke-dasharray: 6 4,fill:#f4f4f5,color:#52525b,stroke:#a1a1aa
+    classDef ext fill:#fff4e0,stroke:#c77700,color:#4a2c00
+    class CLS,EXT,DRA,LLM,K1 llm
+    class PRE,PRM,SCH,APP,CLI,K2 code
+    class VER,DEC,CHK,ASM,EVAL,RULES,TESTSET,K3 planned
+    class GEM,PROMPTS,POL,ENV,K4 ext

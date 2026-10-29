@@ -1,0 +1,17 @@
+# LLM: Google Gemini (official SDK)
+google-genai>=2.33.0
+# Schemas + output validation
+pydantic>=2.9
+# Loads .env so the API key never lives in code
+python-dotenv>=1.0
+# Escalation / action rules live in a YAML file the whole team can read
+pyyaml>=6.0
+# Demo UI
+streamlit>=1.40
+# Evaluation tables + notebook
+pandas>=2.2
+jupyter>=1.0
+# Tests
+pytest>=8.0
+# Docs build (scripts/build_docs.py: Markdown -> PDF)
+markdown>=3.5
